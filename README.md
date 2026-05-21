@@ -1,5 +1,3 @@
-# PrimateAI-3D
-
 PrimateAI-3D scores and primate and human constraint are available at the PrimateAI-3D browser: 
 https://primateai3d.basespace.illumina.com/
 

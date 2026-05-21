@@ -1,0 +1,14 @@
+# Large genomic data files
+data/
+*.gz
+*.tbi
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv
+
+# Conda installer
+Miniconda3-latest-Linux-x86_64.sh
