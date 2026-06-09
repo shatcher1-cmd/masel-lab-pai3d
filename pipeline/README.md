@@ -25,7 +25,7 @@ The current implementation runs on chromosome 22 as a proof of concept.
 
 ## Pipeline Structure
 
-build_dict.py $\right_arrow$ annontate_variants.py $\right_arrow$ compute_burden.py $\right_arrow$ compute_dispersion.py
+build_dict.py → annotate_variants.py → compute_burden.py → compute_dispersion.py
 
 ### `build_dict.py`
 Parses the PAI3D chr22 score file and builds a Python dictionary keyed by 
