@@ -24,7 +24,7 @@ def build_dict(pai3d_path, pickle_path):
         for line in f:
             fields = line.strip().split("\t")
             key = (fields[0], fields[1], fields[2], fields[3]) # uses 'chr' , 'pos' , 'non_flipped_ref' , 'non_flipped_alt' as the key -> fields[0:4]
-            variant_dict[key] = fields[11]                     # value is either 'benign' or 'pathogenic'
+            variant_dict[key] = (fields[4], float(fields[8]), fields[11])   # value is a tuple of (gene_name, pai3d_score, prediction) — fields[4], [8], [11]
 
 
     print(f"Dictionary built with {len(variant_dict)} entries")
