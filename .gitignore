@@ -11,4 +11,8 @@ __pycache__/
 .venv
 
 # Conda installer
-Miniconda3-latest-Linux-x86_64.sh
+Miniconda3-latest-Linux-x86_64.shpipeline/output/
+*.pkl
+*.tsv
+meeting_summary.py
+test.py
