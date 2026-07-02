@@ -6,7 +6,7 @@ import os
 sys.path.append("/home/shatcher1/projects/PrimateAI-3D/pipeline")
 
 from build_dict import build_dict
-from variant_record import VariantRecord
+from variants import Variants
 from individual import Individual
 
 # paths
@@ -14,6 +14,19 @@ PAI3D_CHR22_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/PrimateAI-3D.hg38
 PICKLE_PATH = "/home/shatcher1/projects/PrimateAI-3D/pipeline/output/chr22_variant_dict.pkl"
 VCF_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/1000g/1kGP_high_coverage_Illumina.chr22.filtered.SNV_INDEL_SV_phased_panel.vcf.gz"
 OUTPUT_PATH = "/home/shatcher1/projects/PrimateAI-3D/pipeline/output/chr22_individuals.pkl"
+POPULATION_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/1000g/20130606_g1k_3202_samples_ped_population.txt"
+
+def load_population_map(ped_path):
+    # reads the 1000G ped/population file and builds a dict mapping sample_id -> population
+    population_map = {}  # Initializes dictionary
+    with open(ped_path, "r") as f:
+        next(f)  # skip header row
+        for line in f:
+            fields = line.strip().split() # space delimited (not tab delimited)
+            sample_id = fields[1]     # SampleID column
+            population = fields[5]    # Population column
+            population_map[sample_id] = population
+    return population_map
 
 # ==============================================================================
 # STRAND ALIGNMENT / ALLELE MATCHING LOGIC
@@ -35,7 +48,7 @@ def parse_genotype(genotype):
     # 0|0 -> 0, 0|1 or 1|0 -> 1, 1|1 -> 2
     return sum(1 for a in alleles if a == "1")
 
-def annotate_variants(vcf_path, output_path, variant_dict):
+def annotate_variants(vcf_path, output_path, variant_dict, population_map):
 
     individuals = {}  # maps sample_id -> Individual object
 
@@ -57,7 +70,8 @@ def annotate_variants(vcf_path, output_path, variant_dict):
 
                 # create one Individual object per sample, stored by sample_id
                 for sample_id in sample_ids:
-                    individuals[sample_id] = Individual(sample_id)
+                    population = population_map.get(sample_id) # None if sample not found in file
+                    individuals[sample_id] = Individual(sample_id, population = population)
                 continue
 
             # data lines -> look up variant in PAI3D dict
@@ -89,7 +103,7 @@ def annotate_variants(vcf_path, output_path, variant_dict):
 
                 # only create a VariantRecord if the individual carries at least one copy
                 if copies > 0:
-                    record = VariantRecord(
+                    record = Variants(
                         chromosome=fields[0],
                         gene=gene_name,
                         position=int(fields[1]),
@@ -117,4 +131,5 @@ def annotate_variants(vcf_path, output_path, variant_dict):
 
 if __name__ == "__main__":
     variant_dict = build_dict(PAI3D_CHR22_PATH, PICKLE_PATH)
-    annotate_variants(VCF_PATH, OUTPUT_PATH, variant_dict)
+    population_map = load_population_map(POPULATION_PATH)
+    annotate_variants(VCF_PATH, OUTPUT_PATH, variant_dict, population_map)
