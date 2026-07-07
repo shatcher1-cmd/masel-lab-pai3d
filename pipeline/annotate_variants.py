@@ -3,30 +3,16 @@ import pickle
 import sys
 import os
 
-sys.path.append("/home/shatcher1/projects/PrimateAI-3D/pipeline")
+sys.path.append("/groups/masel/spencer_pai3d/pipeline")
 
 from build_dict import build_dict
 from variant import Variant
 from individual import Individual
 
-# paths
-PAI3D_CHR22_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/PrimateAI-3D.hg38.chr22.txt.gz"
-PICKLE_PATH = "/home/shatcher1/projects/PrimateAI-3D/pipeline/output/chr22_variant_dict.pkl"
-VCF_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/1000g/1kGP_high_coverage_Illumina.chr22.filtered.SNV_INDEL_SV_phased_panel.vcf.gz"
-OUTPUT_PATH = "/home/shatcher1/projects/PrimateAI-3D/pipeline/output/chr22_individuals.pkl"
-POPULATION_PATH = "/home/shatcher1/projects/PrimateAI-3D/data/1000g/20130606_g1k_3202_samples_ped_population.txt"
-
-def load_population_map(ped_path):
-    # reads the 1000G ped/population file and builds a dict mapping sample_id -> population
-    population_map = {}  # Initializes dictionary
-    with open(ped_path, "r") as f:
-        next(f)  # skip header row
-        for line in f:
-            fields = line.strip().split() # space delimited (not tab delimited)
-            sample_id = fields[1]     # SampleID column
-            population = fields[5]    # Population column
-            population_map[sample_id] = population
-    return population_map
+# base directories for HPC
+VCF_DIR = "/groups/masel/spencer_pai3d/data/1000g"
+OUTPUT_DIR = "/groups/masel/spencer_pai3d/output"
+POPULATION_PATH = "/groups/masel/spencer_pai3d/data/1000g/20130606_g1k_3202_samples_ped_population.txt"
 
 # ==============================================================================
 # STRAND ALIGNMENT / ALLELE MATCHING LOGIC
@@ -40,6 +26,18 @@ def load_population_map(ped_path):
 
 COMPLEMENT = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
 
+def load_population_map(ped_path):
+    # reads the 1000G ped/population file and builds a dict mapping sample_id -> population
+    population_map = {}
+    with open(ped_path, "r") as f:
+        next(f)  # skip header row
+        for line in f:
+            fields = line.strip().split()  # space delimited (not tab delimited)
+            sample_id = fields[1]          # SampleID column
+            population = fields[5]         # Population column
+            population_map[sample_id] = population
+    return population_map
+
 def parse_genotype(genotype):
     # replace | with / so we handle both phased (0|1) and unphased (0/1) formats
     # then split on / to get individual alleles -> ["0", "1"]
@@ -48,7 +46,13 @@ def parse_genotype(genotype):
     # 0|0 -> 0, 0|1 or 1|0 -> 1, 1|1 -> 2
     return sum(1 for a in alleles if a == "1")
 
-def annotate_variants(vcf_path, output_path, variant_dict, population_map):
+def annotate_variants(chr_num, population_map):
+
+    vcf_path = os.path.join(VCF_DIR, f"1kGP_high_coverage_Illumina.chr{chr_num}.filtered.SNV_INDEL_SV_phased_panel.vcf.gz")
+    output_path = os.path.join(OUTPUT_DIR, f"chr{chr_num}_individuals.pkl")
+
+    # build or load the PAI3D dictionary for this chromosome
+    variant_dict = build_dict(chr_num)
 
     individuals = {}  # maps sample_id -> Individual object
 
@@ -70,8 +74,8 @@ def annotate_variants(vcf_path, output_path, variant_dict, population_map):
 
                 # create one Individual object per sample, stored by sample_id
                 for sample_id in sample_ids:
-                    population = population_map.get(sample_id) # None if sample not found in file
-                    individuals[sample_id] = Individual(sample_id, population = population)
+                    population = population_map.get(sample_id)  # None if not found
+                    individuals[sample_id] = Individual(sample_id, population=population)
                 continue
 
             # data lines -> look up variant in PAI3D dict
@@ -101,7 +105,7 @@ def annotate_variants(vcf_path, output_path, variant_dict, population_map):
             for sample_id, genotype in zip(sample_ids, genotypes):
                 copies = parse_genotype(genotype)
 
-                # only create a VariantRecord if the individual carries at least one copy
+                # only create a Variant if the individual carries at least one copy
                 if copies > 0:
                     record = Variant(
                         chromosome=fields[0],
@@ -116,8 +120,7 @@ def annotate_variants(vcf_path, output_path, variant_dict, population_map):
 
             found += 1
 
-    print(f"Variants matched: {found}")
-    print(f"Variants skipped: {skipped}")
+    print(f"Chr{chr_num} — Variants matched: {found}, skipped: {skipped}")
 
     # convert dict to list of Individual objects and pickle
     individual_list = list(individuals.values())
@@ -126,10 +129,17 @@ def annotate_variants(vcf_path, output_path, variant_dict, population_map):
         pickle.dump(individual_list, f)
 
     print(f"Pickled {len(individual_list)} individuals to {output_path}")
+
     return individual_list
 
 
 if __name__ == "__main__":
-    variant_dict = build_dict(PAI3D_CHR22_PATH, PICKLE_PATH)
+    # chromosome number passed as command line argument
+    # e.g. python annotate_variants.py 22
+    if len(sys.argv) != 2:
+        print("Usage: python annotate_variants.py <chr_num>")
+        sys.exit(1)
+
+    chr_num = sys.argv[1]
     population_map = load_population_map(POPULATION_PATH)
-    annotate_variants(VCF_PATH, OUTPUT_PATH, variant_dict, population_map)
+    annotate_variants(chr_num, population_map)
