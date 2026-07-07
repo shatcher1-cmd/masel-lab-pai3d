@@ -6,7 +6,7 @@ import os
 sys.path.append("/home/shatcher1/projects/PrimateAI-3D/pipeline")
 
 from build_dict import build_dict
-from variants import Variants
+from variant import Variant
 from individual import Individual
 
 # paths
@@ -103,7 +103,7 @@ def annotate_variants(vcf_path, output_path, variant_dict, population_map):
 
                 # only create a VariantRecord if the individual carries at least one copy
                 if copies > 0:
-                    record = Variants(
+                    record = Variant(
                         chromosome=fields[0],
                         gene=gene_name,
                         position=int(fields[1]),
